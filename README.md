@@ -1,0 +1,1 @@
+This is a small proxy which can be used to automatically re-authenticate with the AWS ECR on an interval. This can be used in situations where the credential helper is not suitable. See `src/index.js` for more info on config options.

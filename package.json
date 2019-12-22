@@ -1,0 +1,19 @@
+{
+  "name": "ecr-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "author": "Zachary Byod <zachary@zacharyboyd.nyc>",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.595.0",
+    "express": "^4.17.1",
+    "http-proxy": "^1.18.0",
+    "minimist": "^1.2.0",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.8"
+  }
+}
