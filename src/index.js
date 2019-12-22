@@ -12,7 +12,7 @@ const secretAccessKey = (argv.secret || argv.s) || process.env.AWS_SECRET_ACCESS
 const regHost = (argv.region || argv.r) || process.env.AWS_REGISTRY_HOST;
 const region = (argv.reghost || argv.e) || process.env.AWS_REGION;
 const port = Number((argv.port || argv.p) || process.env.PORT) || 5000;
-const host = ((argv.host || argv.h) || process.env.HOST) || '127.0.0.1';
+const host = ((argv.host || argv.h) || process.env.HOST);
 const refreshEvery = Number(((argv.frequency || argv.q) || process.env.FREQUENCY)) || (1000 * 60 * 5);
 
 let dockerAuth = 2;
@@ -80,6 +80,6 @@ const proxyServer = new (http.Server)((req, res) => {
     });
 });
 
-refreshAuth().then(() => proxyServer.listen(port, host, (e) => { if(e) { console.error(e.message); process.exit(1); } else { console.log(`listening on ${port}`) } }));
+refreshAuth().then(() => proxyServer.listen(port, (host ? host : void(0)), (e) => { if(e) { console.error(e.message); process.exit(1); } else { console.log(`listening on ${port}`) } }));
 
 setInterval(refreshAuth, refreshEvery);
