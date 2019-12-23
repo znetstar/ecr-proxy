@@ -12,12 +12,13 @@ const secretAccessKey = (argv.secret || argv.s) || process.env.AWS_SECRET_ACCESS
 const regHost = (argv.region || argv.r) || process.env.AWS_REGISTRY_HOST;
 const region = (argv.reghost || argv.e) || process.env.AWS_REGION;
 const port = Number((argv.port || argv.p) || process.env.PORT) || 5000;
-const host = ((argv.host || argv.h) || process.env.HOST);
+const host = ((argv.host || argv.h) || process.env.HOST) || 'localhost';
 const refreshEvery = Number(((argv.frequency || argv.q) || process.env.FREQUENCY)) || (1000 * 60 * 5);
 
 let dockerAuth = 2;
 
 async function refreshAuth() {
+    console.log('refreshing ecr auth');
     const tokenRes = await ecr.getAuthorizationToken({}).promise();
     if (tokenRes && tokenRes.authorizationData.length && tokenRes.authorizationData[0].authorizationToken) {
         dockerAuth = tokenRes.authorizationData[0].authorizationToken;
@@ -33,53 +34,37 @@ const ecr = new AWS.ECR({
     region
 });
 
-const proxy = httpProxy.createProxyServer({});
+const proxy = httpProxy.createProxyServer({
+    target: `https://${regHost}`,
+    secure: false,
+    get headers() {
+        return { 
+            authorization: `Basic ${dockerAuth}`,
+            host: regHost
+        };
+    }
+});
 
-async function checkAuth(fullUrl, auth) {
-    if (!auth)
-        return false;
-    
-    const url = require('url').parse(fullUrl);
-    const resp = await request({
-        url: fullUrl,
-        headers: {
-            Host: url.hostname,
-            Authorization: `Basic ${auth}`
-        },
-        method: 'HEAD',
-        resolveWithFullResponse: true,
-        simple: false,
-        transform: null,
-        transform2xxOnly: false,
-        followAllRedirects: true,
-        followRedirect: true
-    });
-
-    return resp.statusCode !== 401 && resp.statusCode !== 403; 
+function onStart(req, res, target) {
+    req.headers['host'] = regHost;
+    req.headers['authorization'] = `Basic ${dockerAuth}`;
 }
 
-async function onReq(proxyReq, req, res, options) {
-    proxyReq.setHeader(`Host`, regHost);
-    proxyReq.setHeader('Authorization', `Basic ${dockerAuth}`);
-}
-
-async function onRes(proxyRes, req, res, options) {
+function onRes(proxyRes, req, res) {
     if (proxyRes.headers.location) {
-        const dest = proxyRes.headers.location.toString();
-        const rewrite = dest.replace(new RegExp(regHost, 'g'), `${host}:${port}`);
+        const dest = String(proxyRes.headers.location);
+        const rewrite = dest.replace(new RegExp(`https://${regHost}`), `http://${host}`);
+
         proxyRes.headers.location = rewrite;
     }
 }
 
-proxy.on('proxyReq', onReq);
+proxy.on('start', onStart);
 proxy.on('proxyRes', onRes);
+proxy.on('error', (err) => {
+    console.error(err.message);
+})
 
-const proxyServer = new (http.Server)((req, res) => {
-    proxy.web(req, res, {
-        target: `https://${regHost}`
-    });
-});
+refreshAuth().then(() => proxy.listen(port, (e) => { if(e) { console.error(e.message); process.exit(1); } else { console.log(`listening on ${port}`) } }));
 
-refreshAuth().then(() => proxyServer.listen(port, (host ? host : void(0)), (e) => { if(e) { console.error(e.message); process.exit(1); } else { console.log(`listening on ${port}`) } }));
-
-setInterval(refreshAuth, refreshEvery);
+setInterval(refreshAuth, refreshEvery); 
