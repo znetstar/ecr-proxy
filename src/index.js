@@ -59,12 +59,17 @@ function onRes(proxyRes, req, res) {
     }
 }
 
+function onErr (err) {
+    console.error(err.message);
+    process.exit(1);
+}
+
 proxy.on('start', onStart);
 proxy.on('proxyRes', onRes);
-proxy.on('error', (err) => {
-    console.error(err.message);
-})
+proxy.on('error', onErr);
 
-refreshAuth().then(() => proxy.listen(port, (e) => { if(e) { console.error(e.message); process.exit(1); } else { console.log(`listening on ${port}`) } }));
+refreshAuth()
+    .then(() => proxy.listen(port, (e) => { if(e) { console.error(e.message); process.exit(1); } else { console.log(`listening on ${port}`) } }))
+    .catch(onErr)
 
 setInterval(refreshAuth, refreshEvery); 
